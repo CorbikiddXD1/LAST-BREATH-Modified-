@@ -1,0 +1,438 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8" />
+	<meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1" />
+	<title>LAST BREATH</title>
+	
+	<!-- Standardised web app manifest -->
+	<link rel="manifest" href="appmanifest.json" />
+	
+	<!-- Allow fullscreen mode on iOS devices. (These are Apple specific meta tags.) -->
+	<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0, user-scalable=no, minimal-ui" />
+	<meta name="apple-mobile-web-app-capable" content="yes" />
+	<meta name="apple-mobile-web-app-status-bar-style" content="black" />
+	<link rel="apple-touch-icon" sizes="256x256" href="icon-256.png" />
+	<meta name="HandheldFriendly" content="true" />
+	
+	<!-- Chrome for Android web app tags -->
+	<meta name="mobile-web-app-capable" content="yes" />
+	<link rel="shortcut icon" sizes="256x256" href="icon-256.png" />
+
+    <!-- All margins and padding must be zero for the canvas to fill the screen. -->
+	<style type="text/css">
+		* {
+			padding: 0;
+			margin: 0;
+		}
+		html, body {
+			background: #000;
+			color: #fff;
+			overflow: hidden;
+			touch-action: none;
+			-ms-touch-action: none;
+		}
+		canvas {
+			touch-action-delay: none;
+			touch-action: none;
+			-ms-touch-action: none;
+		}
+    </style>
+	
+
+</head> 
+ 
+<body> 
+	<div id="fb-root"></div>
+	
+	<script>
+	// Issue a warning if trying to preview an exported project on disk.
+	(function(){
+		// Check for running exported on file protocol
+		if (window.location.protocol.substr(0, 4) === "file")
+		{
+			alert("Exported games won't work until you upload them. (When running on the file:/// protocol, browsers block many features from working for security reasons.)");
+		}
+	})();
+	</script>
+	
+	<!-- The canvas must be inside a div called c2canvasdiv -->
+	<div id="c2canvasdiv">
+	
+		<!-- The canvas the project will render to.  If you change its ID, don't forget to change the
+		ID the runtime looks for in the jQuery events above (ready() and cr_sizeCanvas()). -->
+		<canvas id="c2canvas" width="640" height="480">
+			<!-- This text is displayed if the visitor's browser does not support HTML5.
+			You can change it, but it is a good idea to link to a description of a browser
+			and provide some links to download some popular HTML5-compatible browsers. -->
+			<h1>Your browser does not appear to support HTML5.  Try upgrading your browser to the latest version.  <a href="http://www.whatbrowser.org">What is a browser?</a>
+			<br/><br/><a href="http://www.microsoft.com/windows/internet-explorer/default.aspx">Microsoft Internet Explorer</a><br/>
+			<a href="http://www.mozilla.com/firefox/">Mozilla Firefox</a><br/>
+			<a href="http://www.google.com/chrome/">Google Chrome</a><br/>
+			<a href="http://www.apple.com/safari/download/">Apple Safari</a></h1>
+		</canvas>
+		
+	</div>
+	
+	<!-- Pages load faster with scripts at the bottom -->
+	
+	<!-- Construct 2 exported games require jQuery. -->
+	<script src="jquery-3.4.1.min.js"></script>
+
+
+	
+    <!-- The runtime script.  You can rename it, but don't forget to rename the reference here as well.
+    This file will have been minified and obfuscated if you enabled "Minify script" during export. -->
+	<script src="c2runtime.js"></script>
+
+    <script>
+		// Start the Construct 2 project running on window load.
+		jQuery(document).ready(function ()
+		{			
+			// Create new runtime using the c2canvas
+			cr_createRuntime("c2canvas");
+		});
+		
+		// Pause and resume on page becoming visible/invisible
+		function onVisibilityChanged() {
+			if (document.hidden || document.mozHidden || document.webkitHidden || document.msHidden)
+				cr_setSuspended(true);
+			else
+				cr_setSuspended(false);
+		};
+		
+		document.addEventListener("visibilitychange", onVisibilityChanged, false);
+		document.addEventListener("mozvisibilitychange", onVisibilityChanged, false);
+		document.addEventListener("webkitvisibilitychange", onVisibilityChanged, false);
+		document.addEventListener("msvisibilitychange", onVisibilityChanged, false);
+		
+		function OnRegisterSWError(e)
+		{
+			console.warn("Failed to register service worker: ", e);
+		};
+		
+		// Runtime calls this global method when ready to start caching (i.e. after startup).
+		// This registers the service worker which caches resources for offline support.
+		window.C2_RegisterSW = function C2_RegisterSW()
+		{
+			if (!navigator.serviceWorker)
+				return;		// no SW support, ignore call
+			
+			try {
+				navigator.serviceWorker.register("sw.js", { scope: "./" })
+				.then(function (reg)
+				{
+					console.log("Registered service worker on " + reg.scope);
+				})
+				.catch(OnRegisterSWError);
+			}
+			catch (e)
+			{
+				OnRegisterSWError(e);
+			}
+		};
+    </script>
+
+	<style id="last-breath-debug-style">
+		#lb-debug {
+			position: fixed;
+			top: 12px;
+			left: 12px;
+			z-index: 999999;
+			font-family: Arial, Helvetica, sans-serif;
+			color: #fff;
+			user-select: none;
+			pointer-events: none;
+		}
+		#lb-debug * { box-sizing: border-box; }
+		#lb-debug-panel {
+			pointer-events: auto;
+			width: 245px;
+			background: rgba(12, 12, 16, .94);
+			border: 1px solid rgba(255,255,255,.22);
+			border-radius: 9px;
+			box-shadow: 0 8px 30px rgba(0,0,0,.55);
+			overflow: hidden;
+			transition: width .18s ease, opacity .18s ease;
+		}
+		#lb-debug-panel.collapsed { width: 42px; }
+		#lb-debug-panel.collapsed .lb-content,
+		#lb-debug-panel.collapsed .lb-title { display: none; }
+		#lb-debug-head {
+			height: 42px;
+			display: flex;
+			align-items: center;
+			gap: 8px;
+			padding: 0 9px;
+			background: rgba(35,35,43,.98);
+			cursor: pointer;
+			font-weight: 700;
+			font-size: 13px;
+			letter-spacing: .5px;
+		}
+		#lb-debug-dot {
+			width: 9px; height: 9px; border-radius: 50%;
+			background: #ff4141;
+			box-shadow: 0 0 8px #ff4141;
+			flex: 0 0 auto;
+		}
+		#lb-debug-panel.active #lb-debug-dot {
+			background: #42ff77;
+			box-shadow: 0 0 8px #42ff77;
+		}
+		#lb-debug-arrow { margin-left: auto; font-size: 15px; }
+		.lb-content { padding: 10px; }
+		.lb-section {
+			font-size: 10px;
+			color: #aaa;
+			text-transform: uppercase;
+			letter-spacing: 1px;
+			margin: 3px 0 6px;
+		}
+		.lb-row {
+			display: flex;
+			align-items: center;
+			justify-content: space-between;
+			gap: 8px;
+			padding: 7px 0;
+			font-size: 12px;
+		}
+		.lb-row label { color: #eee; }
+		.lb-switch {
+			position: relative;
+			width: 36px; height: 20px;
+			flex: 0 0 auto;
+		}
+		.lb-switch input { opacity: 0; width: 0; height: 0; }
+		.lb-slider {
+			position: absolute; inset: 0;
+			background: #444;
+			border-radius: 20px;
+			cursor: pointer;
+			transition: .15s;
+		}
+		.lb-slider:before {
+			content: "";
+			position: absolute;
+			width: 14px; height: 14px;
+			left: 3px; top: 3px;
+			background: #fff;
+			border-radius: 50%;
+			transition: .15s;
+		}
+		.lb-switch input:checked + .lb-slider { background: #3aa85d; }
+		.lb-switch input:checked + .lb-slider:before { transform: translateX(16px); }
+		.lb-buttons { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+		.lb-btn, .lb-select {
+			border: 1px solid #555;
+			background: #24242b;
+			color: #eee;
+			border-radius: 5px;
+			padding: 7px 6px;
+			font-size: 11px;
+			cursor: pointer;
+		}
+		.lb-btn:hover, .lb-select:hover { background: #34343d; }
+		.lb-select { width: 100%; margin-top: 6px; }
+		#lb-debug-badge {
+			display: none;
+			position: fixed;
+			right: 12px;
+			top: 12px;
+			z-index: 1000000;
+			padding: 6px 9px;
+			border-radius: 5px;
+			background: rgba(120,0,0,.9);
+			border: 1px solid rgba(255,120,120,.65);
+			color: #fff;
+			font: 700 11px Arial, Helvetica, sans-serif;
+			letter-spacing: 1px;
+			pointer-events: none;
+		}
+		#lb-debug-badge.on { display: block; }
+		#lb-debug-status {
+			margin-top: 8px;
+			padding: 6px;
+			border-radius: 5px;
+			background: rgba(255,255,255,.06);
+			color: #aaa;
+			font-size: 10px;
+			line-height: 1.4;
+		}
+	</style>
+
+	<div id="lb-debug">
+		<div id="lb-debug-panel">
+			<div id="lb-debug-head" title="Click to collapse/expand">
+				<span id="lb-debug-dot"></span>
+				<span class="lb-title">LAST BREATH DEBUG</span>
+				<span id="lb-debug-arrow">‹</span>
+			</div>
+			<div class="lb-content">
+				<div class="lb-section">Player</div>
+				<div class="lb-row">
+					<label>Infinite Health</label>
+					<label class="lb-switch"><input id="lb-god" type="checkbox"><span class="lb-slider"></span></label>
+				</div>
+				<div class="lb-row">
+					<label>999 Max HP</label>
+					<label class="lb-switch"><input id="lb-maxhp" type="checkbox"><span class="lb-slider"></span></label>
+				</div>
+				<div class="lb-buttons">
+					<button class="lb-btn" id="lb-heal">Full Heal</button>
+					<button class="lb-btn" id="lb-reset">Reset HP</button>
+				</div>
+				<div class="lb-section" style="margin-top:10px">Game</div>
+				<select class="lb-select" id="lb-speed">
+					<option value="1">Game Speed: 1×</option>
+					<option value=".5">Game Speed: 0.5×</option>
+					<option value="1.5">Game Speed: 1.5×</option>
+					<option value="2">Game Speed: 2×</option>
+				</select>
+				<div id="lb-debug-status">Waiting for game runtime…</div>
+			</div>
+		</div>
+	</div>
+	<div id="lb-debug-badge">DEBUG • INFINITE HP</div>
+
+	<script id="last-breath-debug-script">
+	(function () {
+		"use strict";
+
+		var godMode = false;
+		var maxHPMode = false;
+		var gameSpeed = 1;
+
+		function runtime() {
+			try {
+				return window.cr_getC2Runtime ? window.cr_getC2Runtime() : null;
+			} catch (e) { return null; }
+		}
+
+		function globals() {
+			var rt = runtime();
+			return rt && rt.all_global_vars ? rt.all_global_vars : [];
+		}
+
+		function getVar(name) {
+			var list = globals();
+			for (var i = 0; i < list.length; i++) {
+				if (list[i] && list[i].name === name) return list[i];
+			}
+			return null;
+		}
+
+		function getValue(name, fallback) {
+			var v = getVar(name);
+			return v ? Number(v.data) : fallback;
+		}
+
+		function setValue(name, value) {
+			var v = getVar(name);
+			if (v) v.data = value;
+			return !!v;
+		}
+
+		function sync() {
+			var rt = runtime();
+			var hp = getVar("HP");
+			var maxhp = getVar("MaxHP");
+			var status = document.getElementById("lb-debug-status");
+
+			if (!rt || !hp) {
+				status.textContent = "Waiting for game runtime…";
+				return;
+			}
+
+			var max = maxhp ? Number(maxhp.data) : 0;
+
+			// Infinite health is enforced every frame so incoming damage cannot stick.
+			if (godMode) {
+				if (maxHPMode && maxhp) maxhp.data = 999;
+				if (hp) hp.data = maxHPMode ? 999 : (maxhp ? maxhp.data : hp.data);
+			} else if (maxHPMode && maxhp) {
+				maxhp.data = 999;
+				if (Number(hp.data) > 999) hp.data = 999;
+			}
+
+			// Construct 2's global runtime time scale.
+			if (rt.timescale !== undefined) rt.timescale = gameSpeed;
+
+			status.textContent = "HP: " + Math.round(Number(hp.data)) +
+				" / " + Math.round(maxhp ? Number(maxhp.data) : max) +
+				"  •  Speed: " + gameSpeed + "×";
+		}
+
+		function updateBadge() {
+			var badge = document.getElementById("lb-debug-badge");
+			var panel = document.getElementById("lb-debug-panel");
+			badge.classList.toggle("on", godMode);
+			panel.classList.toggle("active", godMode);
+		}
+
+		function toggleGod(on) {
+			godMode = !!on;
+			if (godMode) {
+				var max = getValue("MaxHP", 92);
+				if (maxHPMode) setValue("MaxHP", 999);
+				setValue("HP", maxHPMode ? 999 : max);
+			}
+			updateBadge();
+		}
+
+		document.getElementById("lb-debug-head").addEventListener("click", function () {
+			var panel = document.getElementById("lb-debug-panel");
+			panel.classList.toggle("collapsed");
+			document.getElementById("lb-debug-arrow").textContent =
+				panel.classList.contains("collapsed") ? "›" : "‹";
+		});
+
+		document.getElementById("lb-god").addEventListener("change", function () {
+			toggleGod(this.checked);
+		});
+
+		document.getElementById("lb-maxhp").addEventListener("change", function () {
+			maxHPMode = this.checked;
+			if (maxHPMode) setValue("MaxHP", 999);
+			if (godMode) setValue("HP", maxHPMode ? 999 : getValue("MaxHP", 92));
+			updateBadge();
+		});
+
+		document.getElementById("lb-heal").addEventListener("click", function () {
+			var max = getValue("MaxHP", 92);
+			setValue("HP", maxHPMode ? 999 : max);
+		});
+
+		document.getElementById("lb-reset").addEventListener("click", function () {
+			var max = getValue("MaxHP", 92);
+			setValue("HP", maxHPMode ? 999 : max);
+			godMode = false;
+			document.getElementById("lb-god").checked = false;
+			updateBadge();
+		});
+
+		document.getElementById("lb-speed").addEventListener("change", function () {
+			gameSpeed = Number(this.value) || 1;
+		});
+
+		// F8 toggles the sidebar; F9 toggles infinite health.
+		document.addEventListener("keydown", function (e) {
+			if (e.key === "F8") {
+				e.preventDefault();
+				document.getElementById("lb-debug-head").click();
+			}
+			if (e.key === "F9") {
+				e.preventDefault();
+				var box = document.getElementById("lb-god");
+				box.checked = !box.checked;
+				toggleGod(box.checked);
+			}
+		});
+
+		// Wait for Construct 2 to finish creating its runtime, then enforce cheats.
+		setInterval(sync, 50);
+	})();
+	</script>
+
+</body> 
+</html> 
